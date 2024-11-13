@@ -64,6 +64,16 @@
 
 ########################################################################################################################
 
+# executa no início da execução
+init:
+	jal main
+	jal exit 
+
+# inclui os procedimentos fornecidos pelo professor
+.include "display_bitmap.asm"
+
+########################################################################################################################
+
 # variáveis do jogo
 .data
 tabuleiro:	.space 168	# vetor que representa o tabuleiro de connect 4
@@ -74,15 +84,6 @@ vez:		.word 0		# indica de qual jogador é a vez de jogar
 ########################################################################################################################
 
 .text
-
-# executa no início da execução
-init:
-	jal main
-	jal exit 	
-	
-########################################################################################################################
-
-.include "display_bitmap.asm"
 
 # testes das funções de display de bitmap
 main:
@@ -148,16 +149,18 @@ main:
     		# condição do laço
     		addi $t0, $t0, 1		# i++
     		blt $t0, 42, inicializa_vetor	# volta para o início do laço se i < 42
+    	# imprime uma newline
+	li $a0, 10           # Carrega o valor ASCII de '\n' (10) no registrador $a0
+    	li $v0, 11           # Código de serviço para imprimir caractere
+    	syscall              # Chama o serviço de sistema para imprimir o caractere
     	
     	# desenha o tabuleiro
     	jal desenha_tabuleiro
     	
+    	# desenha as fichas
+    	move $a0, $s0		# $a0 = endereço base de tabuleiro
+    	jal desenha_fichas
     	
-    	 	
-	
-	
-	
-	
 # epílogo
         lw $ra, 0($sp)		# restaura o endereço de retorno
         addiu $sp, $sp, 4       # restaura a pilha
@@ -165,9 +168,7 @@ main:
         
 ########################################################################################################################
         
-# recebe o vetor do tabuleiro como argumento e desenha as fichas na tela
-# argumentos:
-# $a0 : endereço base do vetor tabuleiro[42]
+# desenha o tabuleiro no display de bitmap
 desenha_tabuleiro:
 	# *** mapa dos registradores ***
 	# $s0 = *parei de usar no meio do desenvolvimento do procedimento
@@ -176,9 +177,15 @@ desenha_tabuleiro:
 	# $s3 = j
 
 # prólogo
-	addiu $sp, $sp, -4		# ajusta a pilha
-        sw $ra, 0($sp)         		# guarda na pilha o endereço de retorno
 	
+	# guarda os registradores na pilha
+	addiu $sp, $sp, -20	# ajusta a pilha
+	sw $s3, 16($sp)
+	sw $s2, 12($sp)
+	sw $s1, 8($sp)
+	sw $s0, 4($sp)
+	sw $ra, 0($sp)
+		
 # corpo do programa
 		
 	# tá com uma linha preta esquesita no canto superior esquerdo do bitmap
@@ -341,6 +348,9 @@ desenha_tabuleiro:
 	li $a0, 56
 	li $a1, 9
 	jal put_pixel
+	li $a0, 55
+	li $a1, 8
+	jal put_pixel
 	#bomborasclart
 	
 	# 1
@@ -472,13 +482,198 @@ desenha_tabuleiro:
 	jal put_pixel
 	
 # epílogo
-        lw $ra, 0($sp)		# restaura o endereço de retorno
-        addiu $sp, $sp, 4       # restaura a pilha
-        jr $ra                  # retorna ao procedimento chamador
+	
+	# restaura os registradores
+	lw $ra, 0($sp)
+	lw $s0, 4($sp)
+	lw $s1, 8($sp)
+	lw $s2, 12($sp)
+	lw $s3, 16($sp)
+	addiu, $sp, $sp, 20	# ajusta a pilha
+	
+	jr $ra
+	
+########################################################################################################################
+
+# desenha as fichas inseridas no tabuleiro
+# argumentos:
+# $a0: endereço base do vetor tabuleiro[42]
+desenha_fichas:
+
+# *** mapa dos registradores ***
+# $s0 = endereço base de tabuleiro[42]
+# $s1 = i
+# $s2 = j
+
+# prólogo
+	addiu $sp, $sp, -16		# ajusta a pilha
+	# guarda os registradores
+	sw $s2, 12($sp)
+	sw $s1, 8($sp)
+	sw $s0, 4($sp)			
+        sw $ra, 0($sp)
+        
+# corpo do procedimento
+
+	# carregamso as variáveis
+	move $s0, $a0			# $s0 = endereço base de tabuleiro[42]
+	
+	# for (int i = 5; i >= 0; i--) para iterar pelas linhas (elas tem que ser imprimadas de baixo para cima
+	li $s1, 5			# int i = 5
+	for_linhas:
+		# for (int j = 0; j < 7; j++) para iterar pelas colunas
+		li $s2, 0		# int j = 0
+		for_colunas:
+		
+			# extraindo o valor de tabuleiro[i][j]
+			li $t0, 7		# $t0 = 7 (n_colunas)
+			mult $s1, $t0		# i * 7 (n_colunas)
+			mflo $t0		# $t0 = i * 7
+			add $t0, $t0, $s2	# $t0 = i * 7 + j
+			sll $t0, $t0, 2		# $t0 *= 4
+			add $t0, $t0, $s0	# $t0 = endereço de tabuleiro[i][j]
+			lw $t0, 0($t0)		# $t0 = valor em tabuleiro[i][j]
+			
+			# testes do laço
+			addi $s2, $s2, 1	# j++
+			blt $s2, 7, for_colunas	# j < 7
+			
+		# testes do laço
+		addi $s1, $s1, -1		# i--
+		bge $s1, $zero, for_linhas 	# i >= 0
+	nop
+
+# epílogo
+	# restaura os registradores
+        lw $ra, 0($sp)
+        lw $s0, 4($sp)
+        lw $s1, 8($sp)
+        lw $s2, 12($sp)		
+        addiu $sp, $sp, 16       # restaura a pilha
+        jr $ra 
+	
+########################################################################################################################
+
+# desenha uma única ficha
+# argumentos:
+# $a0: cor da ficha
+# $a1: linha 
+# $a2: coluna
+desenha_ficha:
+# *** mapa dos registradores ***
+# $s0 = $a0
+# $s1 = $a1
+# $s2 = $a2
+
+# prólogo
+	addiu $sp, $sp, -16		# ajusta a pilha
+	# guarda os registradores
+	sw $s2, 12($sp)
+	sw $s1, 8($sp)
+	sw $s0, 4($sp)
+        sw $ra, 0($sp)
+
+# corpo do procedimento
+
+	# carregamos as variáveis
+	move $s0, $a0			# $s0 = cor
+	move $s1, $a1			# $s1 = linha
+	move $s2, $a2			# $s2 = coluna
+
+	# switch(cor)
+	# case 1:
+	li $t0 1			# $t0 = 1
+	beq $s0, $t0, amarela		# vai para amarela se $s0 == 1
+	# case 2:
+	addi $t0, $t0, 1		# $t0 = 2
+	beq $s0, $t0, vermelha		# vai para vermelha se $s0 ==2
+	# case 0:
+	
+	nenhuma:
+		# troca a cor para AQUA
+		li $a0, AQUA
+		jal set_foreground_color
+		j switch_cor_fim
+	amarela:
+		# troca a cor para YELLOW
+		li $a0, YELLOW
+		jal set_foreground_color
+		j switch_cor_fim
+	vermelha:
+		# troca a cor para RED
+		li $a0, RED
+		jal set_foreground_color
+		j switch_cor_fim
+		
+	switch_cor_fim:
+		
+	### desenha a ficha
+	move $a0, $s1		# $a0 = linha
+	move $a1, $s2		# $a1 = coluna
+	jal put_pixel
+	addi $a0, $s1, 1
+	addi $a1, $s2, 1
+	jal put_pixel
+	addi $a0, $s1, -1
+	addi $a1, $s2, 1
+	jal put_pixel
+	addi $a0, $s1, 1
+	addi $a1, $s2, -1
+	jal put_pixel
+	addi $a0, $s1, -1
+	addi $a1, $s2, -1
+	jal put_pixel
+	move $a0, $s1
+	addi $t0, $s2, -2
+	move $a1, $t0
+	move $a2, $s1
+	addi $t0, $s2, 2
+	move $a3, $t0
+	jal draw_line
+	addi $t0, $s1, -2
+	move $a0, $t0
+	move $a1, $s2
+	addi $t0, $s1, 2
+	move $a2, $t0
+	move $a3, $s2
+	jal draw_line
+	addi $a0, $s1, 1
+	addi $a1, $s2, 2
+	jal put_pixel
+	addi $a0, $s1, 1
+	addi $a1, $s2, -2
+	jal put_pixel
+	addi $a0, $s1, -1
+	addi $a1, $s2, 2
+	jal put_pixel
+	addi $a0, $s1, -1
+	addi $a1, $s2, -2
+	jal put_pixel
+	addi $a0, $s1, 2
+	addi $a1, $s2, 1
+	jal put_pixel
+	addi $a0, $s1, 2
+	addi $a1, $s2, -1
+	jal put_pixel
+	addi $a0, $s1, -2
+	addi $a1, $s2, 1
+	jal put_pixel
+	addi $a0, $s1, -2
+	addi $a1, $s2, -1
+	jal put_pixel
 	
 	
-	
-	
-	
+# epílogo
+	# restaura os registradores
+        lw $ra, 0($sp)
+        lw $s0, 4($sp)
+        lw $s1, 8($sp)
+        lw $s2, 12($sp)
+        addiu $sp, $sp, 16       # restaura a pilha
+        jr $ra
+        
+########################################################################################################################
+
 exit:
 	nop
+
