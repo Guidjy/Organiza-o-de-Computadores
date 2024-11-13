@@ -534,6 +534,16 @@ desenha_fichas:
 			add $t0, $t0, $s0	# $t0 = endereço de tabuleiro[i][j]
 			lw $t0, 0($t0)		# $t0 = valor em tabuleiro[i][j]
 			
+			# desenha a ficha
+			move $a0, $t0		# $a0 = cor
+			sll $a1, $s1, 3		# $a1 = linha * 8
+			addi $a1, $a1, 7
+			sll $a2, $s2, 3		# $a2 = coluna * 8
+			addi $a2, $a2, 8
+			jal desenha_ficha
+			
+			
+			
 			# testes do laço
 			addi $s2, $s2, 1	# j++
 			blt $s2, 7, for_colunas	# j < 7
