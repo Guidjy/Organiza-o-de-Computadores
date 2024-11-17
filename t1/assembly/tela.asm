@@ -110,8 +110,8 @@ main:
 	li $a0, AQUA
 	jal set_foreground_color
 	
-	# deixa os pixeis do fundo da tela pretos
-	li $a0, AQUA
+	# deixa os pixeis do fundo da tela azul marinho
+	li $a0, NAVY
 	jal set_background_color
 	
 	# inicializa a tela gráfica 
@@ -154,6 +154,9 @@ main:
     	li $v0, 11           # Código de serviço para imprimir caractere
     	syscall              # Chama o serviço de sistema para imprimir o caractere
     	
+    	# tela de apresentação do jogo
+    	jal jogo_apresenta
+    	
     	# desenha o tabuleiro
     	jal desenha_tabuleiro
     	
@@ -166,6 +169,468 @@ main:
         addiu $sp, $sp, 4       # restaura a pilha
         jr $ra                  # retorna ao procedimento chamador
         
+########################################################################################################################
+
+# desenha a tela de apresentação do jogo
+jogo_apresenta:
+
+# prólogo
+	addi $sp, $sp, -4		# ajusta a pilha
+	sw $ra, 0($sp)			# guarda o endereço de retorno
+
+# corpo do procedimento
+
+	# muda a cor de desenho
+	li $a0, RED
+	jal set_foreground_color	# muda a cor de desenho para vermelho
+	
+	# desenha o título
+	
+	# C
+	li $a0, 16
+	li $a1, 3
+	li $a2, 24
+	li $a3, 3
+	jal draw_line
+	li $a0, 16
+	li $a1, 4
+	li $a2, 24
+	li $a3, 4
+	jal draw_line
+	li $a0, 16
+	li $a1, 5
+	li $a2, 16
+	li $a3, 8
+	jal draw_line
+	li $a0, 17
+	li $a1, 5
+	li $a2, 17
+	li $a3, 8
+	jal draw_line
+	li $a0, 23
+	li $a1, 5
+	li $a2, 23
+	li $a3, 8
+	jal draw_line
+	li $a0, 24
+	li $a1, 5
+	li $a2, 24
+	li $a3, 8
+	jal draw_line
+	
+	# O
+	li $a0, 16
+	li $a1, 12
+	li $a2, 24
+	li $a3, 12
+	jal draw_line
+	li $a0, 16
+	li $a1, 13
+	li $a2, 24
+	li $a3, 13
+	jal draw_line
+	li $a0, 16
+	li $a1, 16
+	li $a2, 24
+	li $a3, 16
+	jal draw_line
+	li $a0, 16
+	li $a1, 17
+	li $a2, 24
+	li $a3, 17
+	jal draw_line
+	li $a0, 16
+	li $a1, 14
+	li $a2, 16
+	li $a3, 15
+	jal draw_line
+	li $a0, 17
+	li $a1, 14
+	li $a2, 17
+	li $a3, 15
+	jal draw_line
+	li $a0, 23
+	li $a1, 14
+	li $a2, 23
+	li $a3, 15
+	jal draw_line
+	li $a0, 24
+	li $a1, 14
+	li $a2, 24
+	li $a3, 15
+	jal draw_line
+	
+	# N
+	li $a0, 16
+	li $a1, 21
+	li $a2, 24
+	li $a3, 21
+	jal draw_line
+	li $a0, 16
+	li $a1, 26
+	li $a2, 24
+	li $a3, 26
+	jal draw_line
+	li $a0, 16
+	li $a1, 22
+	li $a2, 18
+	li $a3, 22
+	jal draw_line
+	li $a0, 18
+	li $a1, 23
+	li $a2, 20
+	li $a3, 23
+	jal draw_line
+	li $a0, 20
+	li $a1, 24
+	li $a2, 22
+	li $a3, 24
+	jal draw_line
+	li $a0, 22
+	li $a1, 25
+	li $a2, 24
+	li $a3, 25
+	jal draw_line
+	
+	# N
+	li $a0, 16
+	li $a1, 30
+	li $a2, 24
+	li $a3, 30
+	jal draw_line
+	li $a0, 16
+	li $a1, 35
+	li $a2, 24
+	li $a3, 35
+	jal draw_line
+	li $a0, 16
+	li $a1, 31
+	li $a2, 18
+	li $a3, 31
+	jal draw_line
+	li $a0, 18
+	li $a1, 32
+	li $a2, 20
+	li $a3, 32
+	jal draw_line
+	li $a0, 20
+	li $a1, 33
+	li $a2, 22
+	li $a3, 33
+	jal draw_line
+	li $a0, 22
+	li $a1, 34
+	li $a2, 24
+	li $a3, 34
+	jal draw_line
+	
+	# E
+	li $a0, 16
+	li $a1, 39
+	li $a2, 24
+	li $a3, 39
+	jal draw_line
+	li $a0, 16
+	li $a1, 40
+	li $a2, 24
+	li $a3, 40
+	jal draw_line
+	li $a0, 16
+	li $a1, 41
+	li $a2, 16
+	li $a3, 44
+	jal draw_line
+	li $a0, 24
+	li $a1, 41
+	li $a2, 24
+	li $a3, 44
+	jal draw_line
+	li $a0, 20
+	li $a1, 41
+	li $a2, 20
+	li $a3, 43
+	jal draw_line
+	
+	# C
+	li $a0, 16
+	li $a1, 48
+	li $a2, 24
+	li $a3, 48
+	jal draw_line
+	li $a0, 16
+	li $a1, 49
+	li $a2, 24
+	li $a3, 49
+	jal draw_line
+	li $a0, 16
+	li $a1, 50
+	li $a2, 16
+	li $a3, 53
+	jal draw_line
+	li $a0, 17
+	li $a1, 50
+	li $a2, 17
+	li $a3, 53
+	jal draw_line
+	li $a0, 23
+	li $a1, 50
+	li $a2, 23
+	li $a3, 53
+	jal draw_line
+	li $a0, 24
+	li $a1, 50
+	li $a2, 24
+	li $a3, 53
+	jal draw_line
+	li $a0, 16
+	li $a1, 57
+	li $a2, 16
+	li $a3, 62
+	jal draw_line
+	li $a0, 17
+	li $a1, 57
+	li $a2, 17
+	li $a3, 62
+	jal draw_line
+	li $a0, 18
+	li $a1, 59
+	li $a2, 24
+	li $a3, 59
+	jal draw_line
+	li $a0, 18
+	li $a1, 60
+	li $a2, 24
+	li $a3, 60
+	jal draw_line
+	
+	# 4
+	li $a0, 30
+	li $a1, 25
+	li $a2, 42
+	li $a3, 25
+	jal draw_line
+	li $a0, 30
+	li $a1, 26
+	li $a2, 42
+	li $a3, 26
+	jal draw_line
+	li $a0, 30
+	li $a1, 27
+	li $a2, 42
+	li $a3, 27
+	jal draw_line
+	li $a0, 30
+	li $a1, 37
+	li $a2, 53
+	li $a3, 37
+	jal draw_line
+	li $a0, 30
+	li $a1, 38
+	li $a2, 53
+	li $a3, 38
+	jal draw_line
+	li $a0, 30
+	li $a1, 39
+	li $a2, 53
+	li $a3, 39
+	jal draw_line
+	li $a0, 40
+	li $a1, 28
+	li $a2, 40
+	li $a3, 36
+	jal draw_line
+	li $a0, 41
+	li $a1, 28
+	li $a2, 41
+	li $a3, 36
+	jal draw_line
+	li $a0, 42
+	li $a1, 28
+	li $a2, 42
+	li $a3, 36
+	jal draw_line
+	
+	# desenha as sombras das letras
+	
+	li $a0, YELLOW
+	jal set_foreground_color	# muda a cor do fundo para amarelo
+	
+	# C
+	li $a0, 17
+	li $a1, 2
+	li $a2, 25
+	li $a3, 2
+	jal draw_line
+	li $a0, 25
+	li $a1, 2
+	li $a2, 25
+	li $a3, 7
+	jal draw_line
+	li $a0, 18
+	li $a1, 5
+	li $a2, 18
+	li $a3, 8
+	jal draw_line
+	
+	# O
+	li $a0, 17
+	li $a1, 11
+	li $a2, 25
+	li $a3, 11
+	jal draw_line
+	li $a0, 25
+	li $a1, 11
+	li $a2, 25
+	li $a3, 16
+	jal draw_line
+	li $a0, 18
+	li $a1, 14
+	li $a2, 18
+	li $a3, 15
+	jal draw_line
+	
+	# N
+	li $a0, 17
+	li $a1, 20
+	li $a2, 25
+	li $a3, 20
+	jal draw_line
+	li $a0, 19
+	li $a1, 22
+	li $a2, 21
+	li $a3, 22
+	jal draw_line
+	li $a0, 21
+	li $a1, 23
+	li $a2, 23
+	li $a3, 23
+	jal draw_line
+	li $a0, 23
+	li $a1, 24
+	li $a2, 25
+	li $a3, 24
+	jal draw_line
+	li $a0, 25
+	li $a1, 25
+	jal put_pixel
+	
+	# N
+	li $a0, 17
+	li $a1, 29
+	li $a2, 25
+	li $a3, 29
+	jal draw_line
+	li $a0, 19
+	li $a1, 31
+	li $a2, 21
+	li $a3, 31
+	jal draw_line
+	li $a0, 21
+	li $a1, 32
+	li $a2, 23
+	li $a3, 32
+	jal draw_line
+	li $a0, 23
+	li $a1, 33
+	li $a2, 25
+	li $a3, 33
+	jal draw_line
+	li $a0, 25
+	li $a1, 34
+	jal put_pixel
+	
+	# E
+	li $a0, 17
+	li $a1, 38
+	li $a2, 25
+	li $a3, 38
+	jal draw_line
+	li $a0, 25
+	li $a1, 38
+	li $a2, 25
+	li $a3, 43
+	jal draw_line
+	li $a0, 17
+	li $a1, 41
+	li $a2, 17
+	li $a3, 43
+	jal draw_line
+	li $a0, 21
+	li $a1, 41
+	li $a2, 21
+	li $a3, 42
+	jal draw_line
+	
+	# C
+	li $a0, 17
+	li $a1, 47
+	li $a2, 25
+	li $a3, 47
+	jal draw_line
+	li $a0, 25
+	li $a1, 47
+	li $a2, 25
+	li $a3, 52
+	jal draw_line
+	li $a0, 18
+	li $a1, 50
+	li $a2, 18
+	li $a3, 52
+	jal draw_line
+	
+	# T
+	li $a0, 17
+	li $a1, 56
+	li $a2, 18
+	li $a3, 56
+	jal draw_line
+	li $a0, 18
+	li $a1, 57
+	li $a2, 18
+	li $a3, 58
+	jal draw_line
+	li $a0, 19
+	li $a1, 58
+	li $a2, 25
+	li $a3, 58
+	jal draw_line
+	li $a0, 25
+	li $a1, 59
+	jal put_pixel
+	
+	# 4
+	li $a0, 31
+	li $a1, 24
+	li $a2, 43
+	li $a3, 24
+	jal draw_line
+	li $a0, 43
+	li $a1, 25
+	li $a2, 43
+	li $a3, 36
+	jal draw_line
+	li $a0, 54
+	li $a1, 37
+	li $a2, 54
+	li $a3, 38
+	jal draw_line
+	li $a0, 31
+	li $a1, 36
+	li $a2, 39
+	li $a3, 36
+	jal draw_line
+	li $a0, 44
+	li $a1, 36
+	li $a2, 54
+	li $a3, 36
+	jal draw_line
+		
+
+# epílogo
+	lw $ra, 0($sp)			# restaura o endereço de retorno
+	addi $sp, $sp, 4		# ajusta a pilha
+	jr $ra
+
 ########################################################################################################################
         
 # desenha o tabuleiro no display de bitmap
@@ -188,13 +653,20 @@ desenha_tabuleiro:
 		
 # corpo do programa
 		
-	# tá com uma linha preta esquesita no canto superior esquerdo do bitmap
-	# apesar de não termos usados nenhum procedimento ainda então tem que pintar
-	li $a0, 0
-	li $a1, 0
-	li $a2, 0
-	li $a3, 50
-	jal draw_line
+	# limpa a tela
+	li $a0, AQUA
+	jal set_foreground_color
+	# for (int i = 0; i < 63; i++)
+	li $s1, 0			# int i = 0
+	limpa_tela:
+		move $a0, $s1		# lin0 = i
+		li $a1, 0		# col0 = 0
+		move $a2, $s1		# lin1 = i
+		li $a3, 63		# col1 = 63
+		jal draw_line		# desenha uma linha horizontal
+		addi $s1, $s1, 1	# i++
+		blt $s1, 63, limpa_tela # while i < 63
+	
 		
 	li $a0, BLUE			# $a0 = hex de azul
 	jal set_foreground_color	# muda a cor do desenho para azul
@@ -618,8 +1090,8 @@ desenha_ficha:
 	switch_cor_fim:
 		
 	### desenha a ficha
-	move $a0, $s1		# $a0 = linha
-	move $a1, $s2		# $a1 = coluna
+	move $a0, $s1		
+	move $a1, $s2		
 	jal put_pixel
 	addi $a0, $s1, 1
 	addi $a1, $s2, 1
