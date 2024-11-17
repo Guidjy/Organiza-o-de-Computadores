@@ -1,1161 +1,629 @@
-########################################################################################################################
-# *** Procedimentos do display de bitmap ***
+#***********************************************************************************************************************
+# Autor: Giovani Baratto (GBTO) - UFSM - CT - DELC
+# e-mail: giovani.baratto@ufsm.br
+# Descrição: Procedimentos, variáveis e constantes para usar com a ferramenta bitmap display. 
 # 
-# >>> screen_init2:
-#     inicializa a tela gráfica
-#
-# >>> coordinates_to_address: 
-#     retorna o endereço da memória da tela gráfica, correspondente a coordenada (x,,y).
-#     Argumentos
-#     $a0 : coordenada x na tela (row)
-#     $a1 : coordenada y na tela (column)
-#     retorno
-#     $v0 : endereço de memória da correspondente coordenada retangular (x,y). Retorna -1 se houve um erro
-#
-# >>> set_foreground_color:
-#     Escolhe a cor de desenho dos pixels
-#     Argumento
-#     $a0 : Cor no formato hexadecimal 0x00RRGGBB
-#
-# >>> set_background_color:
-#     Escolhe a cor do fundo da tela
-#     Argumento
-#     $a0 : Cor no formato hexadecimal 0x00RRGGBB
-#
-# >>> put_pixel:
-#     Escreve um pixel na ferramenta bitmap display na cor da variável screen_color
-#     Argumentos
-#     $a0 : posição row do pixel
-#     $a1 : posição column do pixel
-#
-# >>> draw_line:
-#     Desenho de uma linha de um ponto P0(x0, y0) para P1(x1, y1)
-#     Argumentos do procedimento
-#     $a0 : x0      coordenada x do ponto P0
-#     $a1 : y0      coordenada y do ponto P0
-#     $a2 : x1      coordenada x do ponto P1
-#     $a3 : y1      coordenada y do ponto P1
-#
-# >>> draw_rectangle:
-#     Desenha um retangulo com as coordenadas P0(x0, y0) e P1(x1, y1)
-#     Argumentos do procedimento
-#     $a0 : x0      coordenada x do ponto P0     
-#     $a1 : y0      coordenada y do ponto P0
-#     $a2 : x1      coordenada x do ponto P1 
-#     $a3 : y1      coordenada y do ponto P1
-#
-# >>> draw_circle:
-#     Desenho de um círculo com centro no ponto P0(x0, y0) de raio r. 
-#     Argumentos do procedimento:
-#     $a0 : x0      coordenada x do centro do círculo
-#     $a1 : y0      coordenada y do centro do círculo
-#     $a2 : raio    raio r do circulo com centro em P0(x0, y0)
-#
-#
-# > em síntse:
-# (a) screen_init2:             Inicializa a tela gráfica, versão otimizada
-# (b) coordinates_to_address:   retorna o endereço da memória da tela gráfica, correspondente a coordenada (x,,y)
-# (c) set_foreground_color:     Escolhe a cor de desenho dos pixels
-# (d) set_background_color:     Escolhe a cor do fundo da tela
-# (e) put_pixel:                Escreve um pixel na ferramenta bitmap display na cor da variável screen_color
-# (f) draw_line:                Desenho de uma linha usando o algoritmo de Bresenham, de um ponto P0(x0, y0) para P1(x1, y1)
+# Como usar:
+# antes do procedimento main, inclua a seguite linha:
+# .include "display_bitmap.asm"
+# O arquivo display_bitmap.asm deve estar no mesmo diretório do arquivo com o procedimento main.
+# Você poderá usar os seguintes procedimentos deste arquivo no seu programa.
+# (a) coordinates_to_address:   retorna o endereço da memória da tela gráfica, correspondente a coordenada (x,,y)
+# (b) set_foreground_color:     Escolhe a cor de desenho dos pixels
+# (c) set_background_color:     Escolhe a cor do fundo da tela
+# (d) screen_init:              Inicializa a tela gráfica
+# (e) screen_init2:             Inicializa a tela gráfica, versão otimizada
+# (f) put_pixel:                Escreve um pixel na ferramenta bitmap display na cor da variável screen_color
 # (g) draw_rectangle:           Desenha um retangulo com as coordenadas P0(x0, y0) e P1(x1, y1)
 # (h) draw_circle:              Desenho de um círculo com centro no ponto P0(x0, y0) de raio r.
+# (i) draw_line:                Desenho de uma linha usando o algoritmo de Bresenham, de um ponto P0(x0, y0) para P1(x1, y1)
+#
+# Configure a ferramenta bitmap display com os seguintes parâmetros:
+# Unit Width in Pixels              8
+# Unit Height in Pixels             8
+# Display Width in Pixels           512
+# Display Height in Pixels          512
+# Base address for display          0x      10010000 (static data) 
+# 
+#***********************************************************************************************************************
+#                                                                                                  1         1         1
+#        1         2         3         4         5         6         7         8         9         0         1         2
+#23456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890
+#           M       O                   #
 
 ########################################################################################################################
+# dimensões da tela
+.eqv UNIT_WIDTH     8                   # unidade da largura em pixels
+.eqv UNIT_HEIGHT    8                   # unidade da altura em pixels
+.eqv DISPLAY_WIDTH  512                 # largura da tela gráfica em pixels
+.eqv DISPLAY_HEIGHT 512                 # altura da tela gráfica em pixels
+.eqv SCREEN_WIDTH   64                  # largura da tela: DISPLAY_WIDTH/UNIT-WIDTH
+.eqv SCREEN_HEIGHT  64                  # altura da tela: DISPLAY_HEIGHT/UNIT_HEIGHT
+.eqv SCREEN_MEMORY_DIMENSION 16384      # tamanho da memória utilizada pela tela gráfica =  64 x 64 x 4 bytes
+.eqv DISPLAY_MEMORY_BASE 0x10010000     # endereço base da memória da tela gráfica
 
-# executa no início da execução
-init:
-	jal main
-	jal exit 
-
-# inclui os procedimentos fornecidos pelo professor
-.include "display_bitmap.asm"
-
+# Tabela de cores em formato hexadecimal com nomes em português
+.eqv BLACK	        0x00000000         	# Preto
+.eqv SILVER	        0x00C0C0C0	        # Prata
+.eqv GRAY	        0x00808080	        # Cinza
+.eqv WHITE	        0x00FFFFFF	        # Branco
+.eqv MAROOM	        0x00800000	        # Marrom
+.eqv RED	        0x00FF0000	        # Vermelho
+.eqv PURPLE	        0x00800080	        # Roxo
+.eqv FUCHSIA	    	0x00FF00FF          	# Rosa	
+.eqv GREEN	        0x00008000	        # Verde
+.eqv LIME	        0x0000FF00	        # Limão
+.eqv OLIVE	        0x00808000	        # Oliva
+.eqv YELLOW	        0x00FFFF00	        # Amarelo
+.eqv NAVY	        0x00000080	        # Marinho
+.eqv BLUE	        0x000000FF	        # Azul
+.eqv TEAL	        0x00008080	        # Ciano
+.eqv AQUA	        0x0000FFFF              # Aqua
 ########################################################################################################################
 
-# variáveis do jogo
-.data
-tabuleiro:	.space 168	# vetor que representa o tabuleiro de connect 4
-linha:		.word 0		# armazenar a jogada de um jogador
-coluna:		.word 0		# armazenar a jogada de um jogador
-vez:		.word 0		# indica de qual jogador é a vez de jogar
-
+.data DISPLAY_MEMORY_BASE
 ########################################################################################################################
+dm:                 .space SCREEN_MEMORY_DIMENSION # memória do display = 64 x 64 x 4 bytes
+screen_color:       .word WHITE         # cor dos pixels desenhados
+screen_background_color: .word BLUE     # cor do fundo da tela
+########################################################################################################################
+
 
 .text
 
-# testes das funções de display de bitmap
-main:
-	# *** mapa dos registradores ***
-	# $s0 = endereço base de tabuleiro
-	# $s1 = endereço da variável linha
-	# $s2 = endereço da variável coluna
-	# $s3 = endereço da variável vez
-	# $t0 = coordenada x0
-	# $t1 = coordenada y0
-	# $t2 = coordenada x1
-	# $t3 = coordenada y1
-	
+########################################################################################################################
+# retorna o endereço da memória da tela gráfica, correspondente a coordenada (x,,y)
+# usamos a equação
+# ADDRESS = DISPLAY_MEMORY_BASE + (SCREEN_WIDTH*(row*4)) + (column*4)
+# Argumentos
+# $a0 : coordenada x na tela (row)
+# $a1 : coordenada y na tela (column)
+# retorno
+# $v0 : endereço de memória da correspondente coordenada retangular (x,y). Retorna -1 se houve um erro
+#
+# TODO: Para fazer
+# adicionar um código para verificar se as coordenadas estão dentro dos valores da tela:
+# 0 < x < (SCREEN_WIDTH-1) e 
+# 0 < y < (SCREEN_HEIGHT-1)
+########################################################################################################################
+coordinates_to_address:
+########################################################################################################################
 # prólogo
-	addiu $sp, $sp, -4	# ajusta a pilha
-        sw $ra, 0($sp)         	# guarda na pilha o endereço de retorno
-	
 # corpo do programa
-
-	# carrega as variáveis
-	la $s0, tabuleiro	# $s0 = endereço base de tabuleiro
-	
-	# deixa os pixeis de desenho brancos
-	li $a0, AQUA
-	jal set_foreground_color
-	
-	# deixa os pixeis do fundo da tela azul marinho
-	li $a0, NAVY
-	jal set_background_color
-	
-	# inicializa a tela gráfica 
-	jal screen_init2
-	
-	### inicializa o vetor do tabuleiro para tesagem
-	# $t0 = i
-	# $t1 = número aleatório entre 0 - 2
-	# $t2 = endereço de tabuleiro[i]
-    	move $t0, $zero		# $t0 = 0
-    	# (for int i = 0; i < 42; i++)
-    	inicializa_vetor:
-    		# gera um número aleatório
-    		li $v0, 42       		# syscall para gerar número aleatório
-		li $a0, 1			# argumento para a syscall
-		li $a1, 3			# limite superior para o valor do int gerado
-    		syscall				# $a0 = número aleatório
-    		move $t1, $a0			# $t1 = número aleatório
-    		
-    		# guarda número gerado em tabuleiro[i]
-    		sll $t2, $t0, 2			# $t2 = i * 4
-    		add $t2, $t2, $s0		# $t2 = endereço de tabuleiro[i]
-    		sw $t1, 0($t2)			# tabuleiro[i] = rand() % 3
-    		
-    		# imprime vetor para testar
-    		lw $t3, 0($t2)			# $t3 = valor de tabuleiro[i]
-    		li $v0, 1			# código de syscall para imprimir um inteiro
-    		move $a0, $t3			# passa $t3 para impressão
-    		syscall
-    		# imprime um espaço vazio
-    		li $v0, 11            		# Código de syscall para imprimir um caractere
-		li $a0, ' '           		# Caractere de espaço
-		syscall               		# Chama a syscall para imprimir o espaço
-    			
-    		# condição do laço
-    		addi $t0, $t0, 1		# i++
-    		blt $t0, 42, inicializa_vetor	# volta para o início do laço se i < 42
-    	# imprime uma newline
-	li $a0, 10           # Carrega o valor ASCII de '\n' (10) no registrador $a0
-    	li $v0, 11           # Código de serviço para imprimir caractere
-    	syscall              # Chama o serviço de sistema para imprimir o caractere
-    	
-    	# tela de apresentação do jogo
-    	jal jogo_apresenta
-    	
-    	# desenha o tabuleiro
-    	jal desenha_tabuleiro
-    	
-    	# desenha as fichas
-    	move $a0, $s0		# $a0 = endereço base de tabuleiro
-    	jal desenha_fichas
-    	
+            # verificamos os limites das coordenadas row e collumn
+            slti    $t0, $a0, 0         # $t0 = 1 se x < 0
+            bnez    $t0, cta_error      # Se x < 0, ir para o rótulo de erro
+            slti    $t1, $a1, 0         # $t1 = 1 se y < 0
+            bnez    $t1, cta_error      # Se y < 0, ir para o rótulo de erro
+            sltiu   $t2, $a0, SCREEN_WIDTH  # $t2 = 1 se x < SCREEN_WIDTH
+            beqz    $t2, cta_error      # Se x >= SCREEN_WIDTH, ir para o rótulo de erro
+            sltiu   $t3, $a1, SCREEN_HEIGHT  # $t3 = 1 se y < SCREEN_HEIGHT
+            beqz    $t3, cta_error      # Se y >= SCREEN_HEIGHT, ir para o rótulo de erro
+            # calculamos o endereço de memória
+            li      $t0, SCREEN_WIDTH   # $t0 <- SCREEN_WIDTH
+            sll     $a0, $a0, 2         # $a0 <- ROW*4
+            mul     $v0, $a0, $t0       # [hi:lo] <- $a0*$t0; $v0 <- lo; $v0 <- SCREEN_WIDTH*(ROW*4)
+            sll     $a1, $a1, 2         # $a1 <- COLUMN *4
+            add     $v0, $v0, $a1       # $v0 <- (SCREEN_WIDTH*(ROW*4)) + (COLUMN*4)
+            li      $t0, DISPLAY_MEMORY_BASE # $t0 <- DISPLAY_MEMORY_BASE
+            add     $v0, $t0, $v0       # $v0 <- DISPLAY_MEMORY_BASE + (SCREEN_WIDTH*(ROW*4)) + (COLUMN*4)
+            j       cta_epilogo         # terminamos o procedimento
+cta_error:
+            li      $v0, -1                  # Retorna -1 como valor de erro
 # epílogo
-        lw $ra, 0($sp)		# restaura o endereço de retorno
-        addiu $sp, $sp, 4       # restaura a pilha
-        jr $ra                  # retorna ao procedimento chamador
-        
+cta_epilogo:
+            jr	    $ra                 # retorna ao procedimento chamador
 ########################################################################################################################
 
-# desenha a tela de apresentação do jogo
-jogo_apresenta:
 
+
+
+
+########################################################################################################################
+# Escolhe a cor de desenho dos pixels
+#
+# Argumento
+# $a0       :   Cor no formato hexadecimal 0x00RRGGBB
+########################################################################################################################
+set_foreground_color:
 # prólogo
-	addi $sp, $sp, -4		# ajusta a pilha
-	sw $ra, 0($sp)			# guarda o endereço de retorno
-
 # corpo do procedimento
-
-	# muda a cor de desenho
-	li $a0, RED
-	jal set_foreground_color	# muda a cor de desenho para vermelho
-	
-	# desenha o título
-	
-	# C
-	li $a0, 16
-	li $a1, 3
-	li $a2, 24
-	li $a3, 3
-	jal draw_line
-	li $a0, 16
-	li $a1, 4
-	li $a2, 24
-	li $a3, 4
-	jal draw_line
-	li $a0, 16
-	li $a1, 5
-	li $a2, 16
-	li $a3, 8
-	jal draw_line
-	li $a0, 17
-	li $a1, 5
-	li $a2, 17
-	li $a3, 8
-	jal draw_line
-	li $a0, 23
-	li $a1, 5
-	li $a2, 23
-	li $a3, 8
-	jal draw_line
-	li $a0, 24
-	li $a1, 5
-	li $a2, 24
-	li $a3, 8
-	jal draw_line
-	
-	# O
-	li $a0, 16
-	li $a1, 12
-	li $a2, 24
-	li $a3, 12
-	jal draw_line
-	li $a0, 16
-	li $a1, 13
-	li $a2, 24
-	li $a3, 13
-	jal draw_line
-	li $a0, 16
-	li $a1, 16
-	li $a2, 24
-	li $a3, 16
-	jal draw_line
-	li $a0, 16
-	li $a1, 17
-	li $a2, 24
-	li $a3, 17
-	jal draw_line
-	li $a0, 16
-	li $a1, 14
-	li $a2, 16
-	li $a3, 15
-	jal draw_line
-	li $a0, 17
-	li $a1, 14
-	li $a2, 17
-	li $a3, 15
-	jal draw_line
-	li $a0, 23
-	li $a1, 14
-	li $a2, 23
-	li $a3, 15
-	jal draw_line
-	li $a0, 24
-	li $a1, 14
-	li $a2, 24
-	li $a3, 15
-	jal draw_line
-	
-	# N
-	li $a0, 16
-	li $a1, 21
-	li $a2, 24
-	li $a3, 21
-	jal draw_line
-	li $a0, 16
-	li $a1, 26
-	li $a2, 24
-	li $a3, 26
-	jal draw_line
-	li $a0, 16
-	li $a1, 22
-	li $a2, 18
-	li $a3, 22
-	jal draw_line
-	li $a0, 18
-	li $a1, 23
-	li $a2, 20
-	li $a3, 23
-	jal draw_line
-	li $a0, 20
-	li $a1, 24
-	li $a2, 22
-	li $a3, 24
-	jal draw_line
-	li $a0, 22
-	li $a1, 25
-	li $a2, 24
-	li $a3, 25
-	jal draw_line
-	
-	# N
-	li $a0, 16
-	li $a1, 30
-	li $a2, 24
-	li $a3, 30
-	jal draw_line
-	li $a0, 16
-	li $a1, 35
-	li $a2, 24
-	li $a3, 35
-	jal draw_line
-	li $a0, 16
-	li $a1, 31
-	li $a2, 18
-	li $a3, 31
-	jal draw_line
-	li $a0, 18
-	li $a1, 32
-	li $a2, 20
-	li $a3, 32
-	jal draw_line
-	li $a0, 20
-	li $a1, 33
-	li $a2, 22
-	li $a3, 33
-	jal draw_line
-	li $a0, 22
-	li $a1, 34
-	li $a2, 24
-	li $a3, 34
-	jal draw_line
-	
-	# E
-	li $a0, 16
-	li $a1, 39
-	li $a2, 24
-	li $a3, 39
-	jal draw_line
-	li $a0, 16
-	li $a1, 40
-	li $a2, 24
-	li $a3, 40
-	jal draw_line
-	li $a0, 16
-	li $a1, 41
-	li $a2, 16
-	li $a3, 44
-	jal draw_line
-	li $a0, 24
-	li $a1, 41
-	li $a2, 24
-	li $a3, 44
-	jal draw_line
-	li $a0, 20
-	li $a1, 41
-	li $a2, 20
-	li $a3, 43
-	jal draw_line
-	
-	# C
-	li $a0, 16
-	li $a1, 48
-	li $a2, 24
-	li $a3, 48
-	jal draw_line
-	li $a0, 16
-	li $a1, 49
-	li $a2, 24
-	li $a3, 49
-	jal draw_line
-	li $a0, 16
-	li $a1, 50
-	li $a2, 16
-	li $a3, 53
-	jal draw_line
-	li $a0, 17
-	li $a1, 50
-	li $a2, 17
-	li $a3, 53
-	jal draw_line
-	li $a0, 23
-	li $a1, 50
-	li $a2, 23
-	li $a3, 53
-	jal draw_line
-	li $a0, 24
-	li $a1, 50
-	li $a2, 24
-	li $a3, 53
-	jal draw_line
-	li $a0, 16
-	li $a1, 57
-	li $a2, 16
-	li $a3, 62
-	jal draw_line
-	li $a0, 17
-	li $a1, 57
-	li $a2, 17
-	li $a3, 62
-	jal draw_line
-	li $a0, 18
-	li $a1, 59
-	li $a2, 24
-	li $a3, 59
-	jal draw_line
-	li $a0, 18
-	li $a1, 60
-	li $a2, 24
-	li $a3, 60
-	jal draw_line
-	
-	# 4
-	li $a0, 30
-	li $a1, 25
-	li $a2, 42
-	li $a3, 25
-	jal draw_line
-	li $a0, 30
-	li $a1, 26
-	li $a2, 42
-	li $a3, 26
-	jal draw_line
-	li $a0, 30
-	li $a1, 27
-	li $a2, 42
-	li $a3, 27
-	jal draw_line
-	li $a0, 30
-	li $a1, 37
-	li $a2, 53
-	li $a3, 37
-	jal draw_line
-	li $a0, 30
-	li $a1, 38
-	li $a2, 53
-	li $a3, 38
-	jal draw_line
-	li $a0, 30
-	li $a1, 39
-	li $a2, 53
-	li $a3, 39
-	jal draw_line
-	li $a0, 40
-	li $a1, 28
-	li $a2, 40
-	li $a3, 36
-	jal draw_line
-	li $a0, 41
-	li $a1, 28
-	li $a2, 41
-	li $a3, 36
-	jal draw_line
-	li $a0, 42
-	li $a1, 28
-	li $a2, 42
-	li $a3, 36
-	jal draw_line
-	
-	# desenha as sombras das letras
-	
-	li $a0, YELLOW
-	jal set_foreground_color	# muda a cor do fundo para amarelo
-	
-	# C
-	li $a0, 17
-	li $a1, 2
-	li $a2, 25
-	li $a3, 2
-	jal draw_line
-	li $a0, 25
-	li $a1, 2
-	li $a2, 25
-	li $a3, 7
-	jal draw_line
-	li $a0, 18
-	li $a1, 5
-	li $a2, 18
-	li $a3, 8
-	jal draw_line
-	
-	# O
-	li $a0, 17
-	li $a1, 11
-	li $a2, 25
-	li $a3, 11
-	jal draw_line
-	li $a0, 25
-	li $a1, 11
-	li $a2, 25
-	li $a3, 16
-	jal draw_line
-	li $a0, 18
-	li $a1, 14
-	li $a2, 18
-	li $a3, 15
-	jal draw_line
-	
-	# N
-	li $a0, 17
-	li $a1, 20
-	li $a2, 25
-	li $a3, 20
-	jal draw_line
-	li $a0, 19
-	li $a1, 22
-	li $a2, 21
-	li $a3, 22
-	jal draw_line
-	li $a0, 21
-	li $a1, 23
-	li $a2, 23
-	li $a3, 23
-	jal draw_line
-	li $a0, 23
-	li $a1, 24
-	li $a2, 25
-	li $a3, 24
-	jal draw_line
-	li $a0, 25
-	li $a1, 25
-	jal put_pixel
-	
-	# N
-	li $a0, 17
-	li $a1, 29
-	li $a2, 25
-	li $a3, 29
-	jal draw_line
-	li $a0, 19
-	li $a1, 31
-	li $a2, 21
-	li $a3, 31
-	jal draw_line
-	li $a0, 21
-	li $a1, 32
-	li $a2, 23
-	li $a3, 32
-	jal draw_line
-	li $a0, 23
-	li $a1, 33
-	li $a2, 25
-	li $a3, 33
-	jal draw_line
-	li $a0, 25
-	li $a1, 34
-	jal put_pixel
-	
-	# E
-	li $a0, 17
-	li $a1, 38
-	li $a2, 25
-	li $a3, 38
-	jal draw_line
-	li $a0, 25
-	li $a1, 38
-	li $a2, 25
-	li $a3, 43
-	jal draw_line
-	li $a0, 17
-	li $a1, 41
-	li $a2, 17
-	li $a3, 43
-	jal draw_line
-	li $a0, 21
-	li $a1, 41
-	li $a2, 21
-	li $a3, 42
-	jal draw_line
-	
-	# C
-	li $a0, 17
-	li $a1, 47
-	li $a2, 25
-	li $a3, 47
-	jal draw_line
-	li $a0, 25
-	li $a1, 47
-	li $a2, 25
-	li $a3, 52
-	jal draw_line
-	li $a0, 18
-	li $a1, 50
-	li $a2, 18
-	li $a3, 52
-	jal draw_line
-	
-	# T
-	li $a0, 17
-	li $a1, 56
-	li $a2, 18
-	li $a3, 56
-	jal draw_line
-	li $a0, 18
-	li $a1, 57
-	li $a2, 18
-	li $a3, 58
-	jal draw_line
-	li $a0, 19
-	li $a1, 58
-	li $a2, 25
-	li $a3, 58
-	jal draw_line
-	li $a0, 25
-	li $a1, 59
-	jal put_pixel
-	
-	# 4
-	li $a0, 31
-	li $a1, 24
-	li $a2, 43
-	li $a3, 24
-	jal draw_line
-	li $a0, 43
-	li $a1, 25
-	li $a2, 43
-	li $a3, 36
-	jal draw_line
-	li $a0, 54
-	li $a1, 37
-	li $a2, 54
-	li $a3, 38
-	jal draw_line
-	li $a0, 31
-	li $a1, 36
-	li $a2, 39
-	li $a3, 36
-	jal draw_line
-	li $a0, 44
-	li $a1, 36
-	li $a2, 54
-	li $a3, 36
-	jal draw_line
-		
-
+            la      $t0, screen_color
+            sw      $a0, 0($t0)
 # epílogo
-	lw $ra, 0($sp)			# restaura o endereço de retorno
-	addi $sp, $sp, 4		# ajusta a pilha
-	jr $ra
+            jr	    $ra                 # retorne ao procedimento chamador
+########################################################################################################################
+
+
 
 ########################################################################################################################
-        
-# desenha o tabuleiro no display de bitmap
-desenha_tabuleiro:
-	# *** mapa dos registradores ***
-	# $s0 = *parei de usar no meio do desenvolvimento do procedimento
-	# $s1 = i
-	# $s2 = linha/coluna para começar desenho
-	# $s3 = j
-
+# Escolhe a cor do fundo da tela
+#
+# Argumento
+# $a0       :   Cor no formato hexadecimal 0x00RRGGBB
+########################################################################################################################
+set_background_color:
 # prólogo
-	
-	# guarda os registradores na pilha
-	addiu $sp, $sp, -20	# ajusta a pilha
-	sw $s3, 16($sp)
-	sw $s2, 12($sp)
-	sw $s1, 8($sp)
-	sw $s0, 4($sp)
-	sw $ra, 0($sp)
-		
+# corpo do procedimento
+            la      $t0, screen_background_color
+            sw      $a0, 0($t0)
+# epílogo
+            jr	    $ra                 # retorne ao procedimento chamador
+########################################################################################################################
+
+
+
+
+
+########################################################################################################################
+# inicializa a tela gráfica
+# Argumentos
+# Sem argumentos
+# 
+# Mapa da Pilha
+# $ra :           $sp + 12    endereço de retorno
+# $s0 :           $sp + 8     posição x do pixel (row)
+# $s1 :           $sp + 4     posição y do pixel (column)
+# screen_color:   $sp + 0     cor do pixel que será desenhado
+########################################################################################################################
+screen_init:
+########################################################################################################################
+# prólogo
+            addiu   $sp, $sp, -16       # ajustamos a pilha
+            sw      $ra, 12($sp)        # armazenamos $ra na pilha
+            sw      $s0, 8($sp)         # armazenamos $s0 na pilha
+            sw      $s1, 4($sp)         # armazenamos $s1 na pilha
 # corpo do programa
-		
-	# limpa a tela
-	li $a0, AQUA
-	jal set_foreground_color
-	# for (int i = 0; i < 63; i++)
-	li $s1, 0			# int i = 0
-	limpa_tela:
-		move $a0, $s1		# lin0 = i
-		li $a1, 0		# col0 = 0
-		move $a2, $s1		# lin1 = i
-		li $a3, 63		# col1 = 63
-		jal draw_line		# desenha uma linha horizontal
-		addi $s1, $s1, 1	# i++
-		blt $s1, 63, limpa_tela # while i < 63
-	
-		
-	li $a0, BLUE			# $a0 = hex de azul
-	jal set_foreground_color	# muda a cor do desenho para azul
-	
-	# desenha as linhas vertiais
-	# for (int i = 0; i < 8; i++)
-	li $s1, 0			# $s1 = 0 (int i = 0)
-	desenha_linhas_verticais:
-		li $t0, 8		# $t0 = 8
-		mult $s1, $t0		# i * 8
-		mflo $s2		# $s2 = i * 8
-		addi $s2, $s2, 4	# $s2 += 4 para deixar uma margem na esquerda
-		# $s2 é a coluna sobre a qual deve-se desenhar uma linha
-		li $a0, 3		# lin0 = 3
-		move $a1, $s2		# col0 = $a1
-		li $a2, 51		# lin1 = 51
-		move $a3, $s2		# col1 = $a1
-		jal draw_line		# desenha a linha vertical
-		addi $s1, $s1, 1	# i++
-		blt $s1, 8, desenha_linhas_verticais	# volta para o início do laço se i < 8
-	
-	# desenha as linhas horizontais
-	# for (int i = 0; i < 7; i++)
-	li $s1, 0		# $s1 = 0 (int i = 0)
-	desenha_linhas_horizontais:
-		li $t0, 8		# $t0 = 8
-		mult $s1, $t0		# i * 8
-		mflo $s2		# $s2 = i * 8
-		addi $s2, $s2, 3	# $s2 += 3 para deixar uma margem em cima
-		# $s2 é a linha sobre a qual deve-se desenhar uma linha
-		move $a0, $s2		# lin0 = $s2
-		li $a1, 4		# col0 = 4
-		move $a2, $s2		# lin1 = $s2
-		li $a3, 60		# col1 = 60
-		jal draw_line		# desenha a linha horizontal
-		addi $s1, $s1, 1	# i++
-		blt $s1, 7, desenha_linhas_horizontais	# volta para o início do laço se i < 7
-	
-	# desenha as bordas do tabuleiro
-	li $a0, 2		# lin0 = 2
-	li $a1, 4		# col0 = 4
-	li $a2, 2		# lin1 = 2
-	li $a3, 60		# col1 = 60
-	jal draw_line		# desenha a borda superior
-	li $a0, 52		# lin0 = 52
-	li $a1, 4		# col0 = 4
-	li $a2, 52		# lin1 = 52
-	li $a3, 60		# col1 = 60
-	jal draw_line		# desenha a borda inferior
-	li $a0, 2		# lin0 = 2
-	li $a1, 3		# col0 = 3
-	li $a2, 52		# lin1 = 52
-	li $a3, 3		# col1 = 2
-	jal draw_line		# desenha a borda da esquerda
-	li $a0, 2		# lin0 = 2
-	li $a1, 61		# col0 = 61
-	li $a2, 52		# lin1 = 52
-	li $a3, 61		# col1 = 61
-	jal draw_line		# desenha a borda da direita
-	
-	# muda a cor de desenho
-	li $a0, TEAL		
-	jal set_foreground_color
-	
-	# desenha as bordas da tela
-	li $a0, 0		# lin0 = 0
-	li $a1, 0		# col0 = 0
-	li $a2, 63		# lin1 = 63
-	li $a3, 0		# col1 = 0
-	jal draw_line		
-	li $a0, 0		# lin0 = 0
-	li $a1, 1		# col0 = 1
-	li $a2, 63		# lin1 = 63
-	li $a3, 1		# col1 = 1
-	jal draw_line		
-	li $a0, 0		# lin0 = 0
-	li $a1, 2		# col0 = 2
-	li $a2, 63		# lin1 = 63
-	li $a3, 2		# col1 = 2
-	jal draw_line		
-	li $a0, 0		# lin0 = 0
-	li $a1, 63		# col0 = 63
-	li $a2, 63		# lin1 = 63
-	li $a3, 63		# col1 = 63
-	jal draw_line
-	li $a0, 0		# lin0 = 0
-	li $a1, 62		# col0 = 62
-	li $a2, 63		# lin1 = 63
-	li $a3, 62		# col1 = 62
-	jal draw_line
-	li $a0, 0		# lin0 = 0
-	li $a1, 0		# col0 = 0
-	li $a2, 0		# lin1 = 0
-	li $a3, 63		# col1 = 63
-	jal draw_line
-	li $a0, 1		# lin0 = 1
-	li $a1, 0		# col0 = 0
-	li $a2, 1		# lin1 = 1
-	li $a3, 63		# col1 = 63
-	jal draw_line
-	li $a0, 63		# lin0 = 63
-	li $a1, 0		# col0 = 0
-	li $a2, 63		# lin1 = 63
-	li $a3, 63		# col1 = 63
-	jal draw_line
-	li $a0, 62		# lin0 = 62
-	li $a1, 0		# col0 = 0
-	li $a2, 62		# lin1 = 62
-	li $a3, 63		# col1 = 63
-	jal draw_line
-	
-	# desenha os números
-	
-	li $a0, BLACK		
-	jal set_foreground_color
-	
-	# 0
-	li $a0, 55
-	li $a1, 8
-	jal put_pixel
-	li $a0, 55
-	li $a1, 7
-	jal put_pixel
-	li $a0, 56
-	li $a1, 7
-	jal put_pixel
-	li $a0, 57
-	li $a1, 7
-	jal put_pixel
-	li $a0, 58
-	li $a1, 7
-	jal put_pixel
-	li $a0, 59
-	li $a1, 7
-	jal put_pixel
-	li $a0, 60
-	li $a1, 8
-	jal put_pixel
-	li $a0, 60
-	li $a1, 9
-	jal put_pixel
-	li $a0, 59
-	li $a1, 9
-	jal put_pixel
-	li $a0, 58
-	li $a1, 9
-	jal put_pixel
-	li $a0, 57
-	li $a1, 9
-	jal put_pixel
-	li $a0, 56
-	li $a1, 9
-	jal put_pixel
-	li $a0, 55
-	li $a1, 8
-	jal put_pixel
-	#bomborasclart
-	
-	# 1
-	li $a0, 55
-	li $a1, 16
-	li $a2, 60
-	li $a3, 16
-	jal draw_line
-	li $a0, 56
-	li $a1, 15
-	jal put_pixel
-	li $a0, 60
-	li $a1, 15
-	li $a2, 60
-	li $a3, 17
-	jal draw_line
-	
-	# 2
-	li $a0, 55
-	li $a1, 23
-	li $a2, 55
-	li $a3, 25
-	jal draw_line
-	li $a0, 56
-	li $a1, 25
-	jal put_pixel
-	li $a0, 57
-	li $a1, 24
-	jal put_pixel
-	li $a0, 58
-	li $a1, 23
-	li $a2, 60
-	li $a3, 23
-	jal draw_line
-	li $a0, 60
-	li $a1, 23
-	li $a2, 60
-	li $a3, 25
-	jal draw_line
-	
-	# 3
-	li $a0, 55
-	li $a1, 31
-	li $a2, 55
-	li $a3, 33
-	jal draw_line
-	li $a0, 56
-	li $a1, 33
-	jal put_pixel
-	li $a0, 57
-	li $a1, 32
-	jal put_pixel
-	li $a0, 58
-	li $a1, 33
-	li $a2, 59
-	li $a3, 33
-	jal draw_line
-	li $a0, 60
-	li $a1, 32
-	li $a2, 60
-	li $a3, 31
-	jal draw_line
-	
-	# 4
-	li $a0, 55
-	li $a1, 41
-	li $a2, 60
-	li $a3, 41
-	jal draw_line
-	li $a0, 57 
-	li $a1, 41
-	li $a2, 57
-	li $a3, 39
-	jal draw_line
-	li $a0, 57
-	li $a1, 39
-	li $a2, 55
-	li $a3, 39
-	jal draw_line
-	
-	# 5
-	li $a0, 55
-	li $a1, 49
-	li $a2, 55
-	li $a3, 47
-	jal draw_line
-	li $a0, 55
-	li $a1, 47
-	li $a2, 57
-	li $a3, 47
-	jal draw_line
-	li $a0, 57
-	li $a1, 47
-	li $a2, 57
-	li $a3, 49
-	jal draw_line
-	li $a0, 57
-	li $a1, 49
-	li $a2, 59
-	li $a3, 49
-	jal draw_line
-	li $a0, 60
-	li $a1, 48
-	li $a2, 60
-	li $a3, 47
-	jal draw_line
-	
-	# 6
-	li $a0, 55
-	li $a1, 57
-	li $a2, 55
-	li $a3, 56
-	jal draw_line
-	li $a0, 56
-	li $a1, 55
-	li $a2, 60
-	li $a3, 55
-	jal draw_line
-	li $a0, 60
-	li $a1, 56
-	jal put_pixel
-	li $a0, 59
-	li $a1, 57
-	li $a2, 57
-	li $a3, 57
-	jal draw_line
-	li $a0, 57
-	li $a1, 56
-	jal put_pixel
-	
+            # guardamos a cor de desenho dos pixeis. Restauramos no final do procedimento.
+            la      $t0, screen_color   # $t0 <- endereço de screen_color
+            lw      $t1, 0($t0)         # $t1 <- screen_color
+            sw      $t1, 0($sp)         # armazenamos screen_color na pilha
+            # fazemos screen_color igual a screen_background_color
+            la      $t2, screen_background_color # $t2 <- endereço de screen_backgroud_color
+            lw      $t3, 0($t2)         # $t3 <- screen_background_color
+            sw      $t3, 0($t0)         # screen_color = screen_background_color
+# for(row=0; row<SCREEN_WIDTH; row++) //para cada linha da tela
+#   for(column=0; column< SCREEN_COLUMN, column++) //para cada coluna da tela
+#     put_pixel(row, column); // coloque um  pixel na cor screen_background_color
+si_for1_inicializa:
+            li      $s0, 0              # row = 0
+            j       si_for1_verifica    # desviamos para verificar se o laço deve ser executado
+si_for1_codigo:
+si_for2_inicializa:
+            li      $s1, 0              # column = 0
+            j       si_for2_verifica    # desviamos para verificar se o laço deve ser executado
+si_for2_codigo:
+            move	$a0, $s0            # $a0 <- row
+            move    $a1, $s1            # $a1 <- column
+            jal     put_pixel           # desenhamos um pixel em (row, column) na cor screen_background_color
+si_for2_incrementa:
+            addiu   $s1, $s1, 1         # column++
+si_for2_verifica:
+            slti    $t0, $s1, SCREEN_HEIGHT # $t0=1 se column<SCREEN_COLUMN
+            bne     $t0, $zero, si_for2_codigo # executa o laço for2 se column<SCREEN_COLUMN
+si_for2_fim:
+si_for1_incrementa:
+            addiu   $s0, $s0, 1         # row++
+si_for1_verifica:
+            slti    $t0, $s0, SCREEN_WIDTH # $t0=1 se row<SCREEN_WIDTH
+            bne     $t0, $zero, si_for1_codigo # executa o laço for1 se row<SCREEN_WIDTH
+si_for1_fim:
 # epílogo
-	
-	# restaura os registradores
-	lw $ra, 0($sp)
-	lw $s0, 4($sp)
-	lw $s1, 8($sp)
-	lw $s2, 12($sp)
-	lw $s3, 16($sp)
-	addiu, $sp, $sp, 20	# ajusta a pilha
-	
-	jr $ra
-	
+            la      $t0, screen_color   # $t0 <- endereço de screen_color
+            lw      $t1, 0($sp)         # $t1 <- valor de screen_color na chamada a este procedimento
+            sw      $t1, 0($t0)         # restaura o valor original de screen_color
+            lw      $s1, 4($sp)         # restaura o registrador $s1
+            lw      $s0, 8($sp)         # restaura o registrador $s0
+            lw      $ra, 12($sp)        # restaura o endereço de retorno
+            addiu   $sp, $sp, 16        # restaura a pilha
+            jr	    $ra                 # retorna ao procedimento chamador            
 ########################################################################################################################
 
-# desenha as fichas inseridas no tabuleiro
-# argumentos:
-# $a0: endereço base do vetor tabuleiro[42]
-desenha_fichas:
 
-# *** mapa dos registradores ***
-# $s0 = endereço base de tabuleiro[42]
-# $s1 = i
-# $s2 = j
 
+
+########################################################################################################################
+# inicializa a tela gráfica, versão otimizada
+# Argumentos
+# Sem argumentos
+#
+# Mapa da Pilha
+# $ra :           $sp + 12    endereço de retorno
+# $s0 :           $sp + 8     posição x do pixel (row)
+# $s1 :           $sp + 4     posição y do pixel (column)
+# screen_color:   $sp + 0     cor do pixel que será desenhado
+########################################################################################################################
+screen_init2:
 # prólogo
-	addiu $sp, $sp, -16		# ajusta a pilha
-	# guarda os registradores
-	sw $s2, 12($sp)
-	sw $s1, 8($sp)
-	sw $s0, 4($sp)			
-        sw $ra, 0($sp)
-        
 # corpo do procedimento
-
-	# carregamso as variáveis
-	move $s0, $a0			# $s0 = endereço base de tabuleiro[42]
-	
-	# for (int i = 5; i >= 0; i--) para iterar pelas linhas (elas tem que ser imprimadas de baixo para cima
-	li $s1, 5			# int i = 5
-	for_linhas:
-		# for (int j = 0; j < 7; j++) para iterar pelas colunas
-		li $s2, 0		# int j = 0
-		for_colunas:
-		
-			# extraindo o valor de tabuleiro[i][j]
-			li $t0, 7		# $t0 = 7 (n_colunas)
-			mult $s1, $t0		# i * 7 (n_colunas)
-			mflo $t0		# $t0 = i * 7
-			add $t0, $t0, $s2	# $t0 = i * 7 + j
-			sll $t0, $t0, 2		# $t0 *= 4
-			add $t0, $t0, $s0	# $t0 = endereço de tabuleiro[i][j]
-			lw $t0, 0($t0)		# $t0 = valor em tabuleiro[i][j]
-			
-			# desenha a ficha
-			move $a0, $t0		# $a0 = cor
-			sll $a1, $s1, 3		# $a1 = linha * 8
-			addi $a1, $a1, 7
-			sll $a2, $s2, 3		# $a2 = coluna * 8
-			addi $a2, $a2, 8
-			jal desenha_ficha
-			
-			
-			
-			# testes do laço
-			addi $s2, $s2, 1	# j++
-			blt $s2, 7, for_colunas	# j < 7
-			
-		# testes do laço
-		addi $s1, $s1, -1		# i--
-		bge $s1, $zero, for_linhas 	# i >= 0
-	nop
-
+si2_for_inicializa:  
+            # carregamos um ponteiro com o endereço inicial da memória da tela gráfica
+            la	    $t0, dm             # $t0 <- ponteiro para o primeiro endereço da memória para a tela gráfica
+            # carregamos um ponteiro com o primeiro endereço de memória após o segmento da memória para a tela gráfica
+            li      $t1, SCREEN_MEMORY_DIMENSION # $t1 <- tamanho da memória destinada para a tela gráfica
+            add     $t2, $t0, $t1       # $t2 <- ponteiro para o primeiro endereço após a memória para a tela gráfica
+            la      $t3, screen_background_color # $t3 <- endereço de screen_background_color
+            lw      $t4, 0($t3)         # $t4 <- cor de fundo da tela gráfica
+            j       si2_for_verifica  # verificamos se o ponteiro em t0 aponta para um endereço na tela gráfica
+si2_for_codigo:
+            sw      $t4, 0($t0)         # faz a cor do pixel igual a screen_backgroud_color
+si2_for_incrementa:     
+            addi    $t0, $t0, 4         # aponta para o endereço de memória do próximo pixel
+si2_for_verifica:
+            # enquanto o ponteiro $t0 for menor $t2, ele aponta para a tela gráfica
+            slt     $t5, $t0, $t2
+            bne     $t5, $zero, si2_for_codigo
 # epílogo
-	# restaura os registradores
-        lw $ra, 0($sp)
-        lw $s0, 4($sp)
-        lw $s1, 8($sp)
-        lw $s2, 12($sp)		
-        addiu $sp, $sp, 16       # restaura a pilha
-        jr $ra 
-	
+            jr	    $ra                 # retorna ao procedimento chamador
 ########################################################################################################################
 
-# desenha uma única ficha
-# argumentos:
-# $a0: cor da ficha
-# $a1: linha 
-# $a2: coluna
-desenha_ficha:
-# *** mapa dos registradores ***
-# $s0 = $a0
-# $s1 = $a1
-# $s2 = $a2
 
+
+
+########################################################################################################################
+# Escreve um pixel na ferramenta bitmap display na cor da variável screen_color
+# Argumentos
+# $a0 : posição row do pixel
+# $a1 : posição column do pixel
+#
+# Mapa da Pilha
+# $ra :     $sp+0   endereço de retorno
+########################################################################################################################
+put_pixel:
+########################################################################################################################
 # prólogo
-	addiu $sp, $sp, -16		# ajusta a pilha
-	# guarda os registradores
-	sw $s2, 12($sp)
-	sw $s1, 8($sp)
-	sw $s0, 4($sp)
-        sw $ra, 0($sp)
-
+            addiu   $sp, $sp, -4        # ajustamos a pilha
+            sw      $ra, 0($sp)         # armazenamos na pilha o endereço de retorno
 # corpo do procedimento
-
-	# carregamos as variáveis
-	move $s0, $a0			# $s0 = cor
-	move $s1, $a1			# $s1 = linha
-	move $s2, $a2			# $s2 = coluna
-
-	# switch(cor)
-	# case 1:
-	li $t0 1			# $t0 = 1
-	beq $s0, $t0, amarela		# vai para amarela se $s0 == 1
-	# case 2:
-	addi $t0, $t0, 1		# $t0 = 2
-	beq $s0, $t0, vermelha		# vai para vermelha se $s0 ==2
-	# case 0:
-	
-	nenhuma:
-		# troca a cor para AQUA
-		li $a0, AQUA
-		jal set_foreground_color
-		j switch_cor_fim
-	amarela:
-		# troca a cor para YELLOW
-		li $a0, YELLOW
-		jal set_foreground_color
-		j switch_cor_fim
-	vermelha:
-		# troca a cor para RED
-		li $a0, RED
-		jal set_foreground_color
-		j switch_cor_fim
-		
-	switch_cor_fim:
-		
-	### desenha a ficha
-	move $a0, $s1		
-	move $a1, $s2		
-	jal put_pixel
-	addi $a0, $s1, 1
-	addi $a1, $s2, 1
-	jal put_pixel
-	addi $a0, $s1, -1
-	addi $a1, $s2, 1
-	jal put_pixel
-	addi $a0, $s1, 1
-	addi $a1, $s2, -1
-	jal put_pixel
-	addi $a0, $s1, -1
-	addi $a1, $s2, -1
-	jal put_pixel
-	move $a0, $s1
-	addi $t0, $s2, -2
-	move $a1, $t0
-	move $a2, $s1
-	addi $t0, $s2, 2
-	move $a3, $t0
-	jal draw_line
-	addi $t0, $s1, -2
-	move $a0, $t0
-	move $a1, $s2
-	addi $t0, $s1, 2
-	move $a2, $t0
-	move $a3, $s2
-	jal draw_line
-	addi $a0, $s1, 1
-	addi $a1, $s2, 2
-	jal put_pixel
-	addi $a0, $s1, 1
-	addi $a1, $s2, -2
-	jal put_pixel
-	addi $a0, $s1, -1
-	addi $a1, $s2, 2
-	jal put_pixel
-	addi $a0, $s1, -1
-	addi $a1, $s2, -2
-	jal put_pixel
-	addi $a0, $s1, 2
-	addi $a1, $s2, 1
-	jal put_pixel
-	addi $a0, $s1, 2
-	addi $a1, $s2, -1
-	jal put_pixel
-	addi $a0, $s1, -2
-	addi $a1, $s2, 1
-	jal put_pixel
-	addi $a0, $s1, -2
-	addi $a1, $s2, -1
-	jal put_pixel
-	
-	
+            # encontramos o endereço na memoria da tela gráfica que corresponde às coordenadas (x,y) do pixel
+            jal     coordinates_to_address # $v0 retorna o endereço de memória
+            # carregamos a cor de desenho dos pixels
+            la      $t0, screen_color   # $t0 <- endereço de screen_color
+            lw      $t1, 0($t0)         # $t1 <- screen_color
+            # gravamos na memória da tela gráfica a cor: fazemos o pixel em (row, column) ter a cor screen_color
+            sw      $t1, 0($v0)
 # epílogo
-	# restaura os registradores
-        lw $ra, 0($sp)
-        lw $s0, 4($sp)
-        lw $s1, 8($sp)
-        lw $s2, 12($sp)
-        addiu $sp, $sp, 16       # restaura a pilha
-        jr $ra
-        
+            lw	    $ra, 0($sp)         # restauramos o endereço de retorno
+            addiu   $sp, $sp, 4         # restauramos a pilha
+            jr      $ra                 # retornamos ao procedimento chamador
 ########################################################################################################################
 
-exit:
-	nop
 
+
+########################################################################################################################
+# Desenha um retangulo com as coordenadas P0(x0, y0) e P1(x1, y1)
+#
+# Parâmetros do procedimento
+# $a0           :   x0      coordenada x do ponto P0     
+# $a1           :   y0      coordenada y do ponto P0
+# $a2           :   x1      coordenada x do ponto P1 
+# $a3           :   y1      coordenada y do ponto P1
+#           
+########################################################################################################################
+draw_rectangle:
+########################################################################################################################
+# prólogo
+            addiu  $sp, $sp, -20     # alocamos espaço para 5 elementos
+            sw    $a3, 16($sp)      # armazena os argumentos na pilha
+            sw    $a2, 12($sp)
+            sw    $a1, 8($sp)
+            sw    $a0, 4($sp)
+            sw    $ra, 0($sp)       # armazena o endereço de retorno na pilha
+# corpo do procedimentos
+            add   $a2, $zero, $a0
+            jal   draw_line
+            lw    $a0, 4($sp)
+            lw    $a1, 8($sp)
+            lw    $a2, 12($sp)
+            lw    $a3, 8($sp)
+            jal draw_line
+            lw    $a0, 12($sp)
+            lw    $a1, 8($sp)
+            lw    $a2, 12($sp)
+            lw    $a3, 16($sp)
+            jal draw_line
+            lw    $a0, 4($sp)
+            lw    $a1, 12($sp)
+            lw    $a2, 12($sp)
+            lw    $a3, 16($sp)
+            jal draw_line
+# epílogo
+            lw    $ra, 0($sp)       # restaura o endereço de retorno  
+            addiu $sp, $sp, 20      # restauramos a pilha
+            jr    $ra               # retorna ao procedimento chamador
+########################################################################################################################
+
+
+########################################################################################################################
+# Desenho de um círculo com centro no ponto P0(x0, y0) de raio r. 
+#
+# O algooritmo para o desenho foi encontado em https://en.wikipedia.org/wiki/Midpoint_circle_algorithm
+#
+# parâmetros do procedimento:
+# $a0       :   x0      coordenada x do centro do círculo
+# $a1       :   y0      coordenada y do centro do círculo
+# $a2       :   raio    raio r do circulo com centro em P0(x0, y0)
+#           
+########################################################################################################################
+draw_circle:
+########################################################################################################################
+# prólogo
+            addi  $sp, $sp, -40
+            sw    $a2, 36($sp)
+            sw    $a1, 32($sp)
+            sw    $a0, 28($sp)
+            sw    $ra, 24($sp)
+            sw    $s5, 20($sp) # remover
+            sw    $s4, 16($sp)
+            sw    $s3, 12($sp)
+            sw    $s2, 8($sp)
+            sw    $s1, 4($sp)
+            sw    $s0, 0($sp)
+# corpo do procedimentos
+    
+
+#     int x = radius-1;
+            addi $s0, $a2, -1
+#     int y = 0;
+            add  $s1, $zero, $zero
+#     int dx = 1;
+            addi $s2, $zero, 1
+#     int dy = 1;
+            addi $s3, $zero, 1
+#     int err = dx - (radius << 1);
+            sll  $s4, $a2, 1
+            sub  $s4, $s2, $s4
+# 
+while1_inicio_draw_circle:
+#     while (x >= y)
+            j while1_testa_condicao_draw_circle
+#     {
+while1_codigo_draw_circle:
+          
+#         putpixel(x0 + x, y0 + y);
+            lw  $a0, 28($sp)
+            lw  $a1, 32($sp)
+            add $a0, $a0, $s0
+            add $a1, $a1, $s1
+
+            jal put_pixel
+#         putpixel(x0 + y, y0 + x);
+            lw  $a0, 28($sp)
+            lw  $a1, 32($sp)
+            add $a0, $a0, $s1
+            add $a1, $a1, $s0
+
+            jal put_pixel
+#         putpixel(x0 - y, y0 + x);
+            lw  $a0, 28($sp)
+            lw  $a1, 32($sp)
+            sub $a0, $a0, $s1
+            add $a1, $a1, $s0
+
+            jal put_pixel
+#         putpixel(x0 - x, y0 + y);
+            lw  $a0, 28($sp)
+            lw  $a1, 32($sp)
+            sub $a0, $a0, $s0
+            add $a1, $a1, $s1
+            jal put_pixel
+#         putpixel(x0 - x, y0 - y);
+            lw  $a0, 28($sp)
+            lw  $a1, 32($sp)
+            sub $a0, $a0, $s0
+            sub $a1, $a1, $s1
+            jal put_pixel
+#         putpixel(x0 - y, y0 - x);
+            lw  $a0, 28($sp)
+            lw  $a1, 32($sp)
+            sub $a0, $a0, $s1
+            sub $a1, $a1, $s0
+            jal put_pixel
+#         putpixel(x0 + y, y0 - x);
+            lw  $a0, 28($sp)
+            lw  $a1, 32($sp)
+            add $a0, $a0, $s1
+            sub $a1, $a1, $s0
+
+            jal put_pixel
+#         putpixel(x0 + x, y0 - y);
+            lw  $a0, 28($sp)
+            lw  $a1, 32($sp)
+            add $a0, $a0, $s0
+            sub $a1, $a1, $s1
+
+            jal put_pixel
+           
+            lw $a2, 36($sp)
+            
+if1_inicio_draw_circle:           
+#         if (err <= 0)
+            bgtz  $s4, if1_fim_draw_circle
+#         {
+#             y++;
+            addi  $s1, $s1, 1
+#             err += dy;
+            add   $s4, $s4, $s3
+#             dy += 2;
+            addi  $s3, $s3, 2
+#         }
+if1_fim_draw_circle:
+#         
+if2_inicio_draw_circle:
+#         if (err > 0)
+            blez $s4, if2_fim_draw_circle
+#         {
+#             x--;
+            addi $s0, $s0, -1
+#             dx += 2;
+            addi $s2, $s2, 2
+#             err += dx - (radius << 1);
+            sll  $t0, $a2, 1
+            sub  $t0, $s2, $t0
+            add  $s4, $s4, $t0
+#         }
+if2_fim_draw_circle:
+while1_testa_condicao_draw_circle:
+#     while (x >= y)
+            bge $s0, $s1, while1_codigo_draw_circle
+#     }
+while1_fim_draw_circle:
+
+# epílogo
+            lw    $s0, 0($sp)
+            lw    $s1, 4($sp)
+            lw    $s2, 8($sp)
+            lw    $s3, 12($sp)
+            lw    $s4, 16($sp)
+            lw    $s5, 20($sp) # remover
+            lw    $ra, 24($sp)
+            addi  $sp, $sp, 40
+            jr    $ra               # retornamos ao procedimento chamador
+########################################################################################################################
+
+
+
+
+
+########################################################################################################################
+# Desenho de uma linha usando o algoritmo de Bresenham, de um ponto P0(x0, y0) para P1(x1, y1)
+# Wikipedia contributors. (2024, October 1). Bresenham's line algorithm. In Wikipedia, The Free Encyclopedia. Retrieved 
+# 03:43, October 22, 2024, from https://en.wikipedia.org/w/index.php?title=Bresenham%27s_line_algorithm&oldid=1248820154
+#
+# void plotLine(int x0, int y0, int x1, int y1)
+# {
+#     int dx = abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
+#     int dy = -abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+#     int err = dx + dy, e2; /* error value e_xy */
+#     for (;;)
+#     { /* loop */
+#         printf("(%d, %d)", x0, y0);
+#         e2 = 2 * err;
+#         if (e2 >= dy)
+#         { /* e_xy+e_x > 0 */
+#             if (x0 == x1)
+#                 break;
+#             err += dy;
+#             x0 += sx;
+#         }
+#         if (e2 <= dx)
+#         { /* e_xy+e_y < 0 */
+#             if (y0 == y1)
+#                 break;
+#             err += dx;
+#             y0 += sy;
+#         }
+#     }
+# }
+#
+# Argumentos do procedimento
+# $a0       :       x0      coordenada x do ponto P0
+# $a1       :       y0      coordenada y do ponto P0
+# $a2       :       x1      coordenada x do ponto P1
+# $a3       :       y1      coordenada y do ponto P1
+#
+# Mapa da Pilha
+# $ra       :       $sp + 36        endereço de retorno
+# $s0       :       $sp + 32        x0
+# $s1       :       $sp + 28        y0
+# $s2       :       $sp + 24        x1
+# $s3       :       $sp + 20        y1
+# $s4       :       $sp + 16        dx
+# $s5       :       $sp + 12        sx
+# $s6       :       $sp + 8         dy
+# $s7       :       $sp + 4         sy
+# error     :       $sp + 0         error ($t0)
+# 
+########################################################################################################################
+draw_line:
+# prólogo
+            addiu   $sp, $sp, -40       # ajustamos a pilha
+            sw      $ra, 36($sp)        # guardamos o endereço de retorno na pilha
+            sw      $s0, 32($sp)        # guardamos os registradores $s0 a $s7 na pilha
+            sw      $s1, 28($sp)        # ...
+            sw      $s2, 24($sp)        # ...
+            sw      $s3, 20($sp)        # ...
+            sw      $s4, 16($sp)        # ...
+            sw      $s5, 12($sp)        # ...
+            sw      $s6, 8($sp)         # ...
+            sw      $s7, 4($sp)         # ...
+            # guardamos os argumentos x0, y0, x1, y1 nos registradores $s0 a $s3
+            move    $s0, $a0
+            move    $s1, $a1
+            move    $s2, $a2
+            move    $s3, $a3
+# corpo do programa
+# void plotLine(int x0, int y0, int x1, int y1)
+# {
+#     int dx = abs(x1 - x0);
+            sub	    $s4, $s2, $s0
+            abs     $s4, $s4  
+#     int sx = x0 < x1 ? 1 : -1;
+            slt     $s5, $s0, $s2
+            sll     $s5, $s5, 1
+            addi    $s5, $s5, -1
+#     int dy = -abs(y1 - y0);
+            sub     $s6, $s3, $s1
+            abs     $s6, $s6
+            neg     $s6, $s6
+#     int sy = y0 < y1 ? 1 : -1;
+            slt	    $s7, $s1, $s3
+            sll     $s7, $s7, 1
+            addi    $s7, $s7, -1
+#     int err = dx + dy
+            add     $t0, $s4, $s6
+            sw      $t0, 0($sp)
+#     int e2; /* error value e_xy */
+dl_loop:
+#     for (;;)
+#     { /* loop */
+#         plot(x0,y0);
+            move      $a0, $s0
+            move      $a1, $s1
+            jal       put_pixel
+            lw        $t0, 0($sp)
+#         e2 = 2 * err;
+            mul       $t1, $t0, 2
+#         if (e2 >= dy)
+            slt	    $t2, $t1, $s6
+            bne       $t2, $zero, dl_if_dy_end
+#         { /* e_xy+e_x > 0 */
+#             if (x0 == x1) break;
+            beq	    $s0, $s2, dl_end_loop
+#             err += dy;
+            add	    $t0, $t0, $s6
+            sw      $t0, 0($sp)
+#             x0 += sx;
+            add     $s0, $s0, $s5
+#         }
+dl_if_dy_end:
+#         if (e2 <= dx)
+            slt     $t2, $s4, $t1
+            bne     $t2, $zero, dl_if_dx_end
+#         { /* e_xy+e_y < 0 */
+#             if (y0 == y1) break;
+            beq	    $s1, $s3, dl_end_loop
+#             err += dx;
+            add	    $t0, $t0, $s4
+            sw      $t0, 0($sp)
+#             y0 += sy;
+            add	    $s1, $s1, $s7
+#         }
+dl_if_dx_end:
+#     }
+            j	    dl_loop
+dl_end_loop:
+# }
+# epílogo
+            lw      $s7, 4($sp)         # restauramos os registradores $s0 a $s7
+            lw      $s6, 8($sp)         # ...
+            lw      $s5, 12($sp)        # ...
+            lw      $s4, 16($sp)        # ...
+            lw      $s3, 20($sp)        # ...
+            lw      $s2, 24($sp)        # ...
+            lw      $s1, 28($sp)        # ...
+            lw      $s0, 32($sp)        # ...
+            lw	    $ra, 36($sp)        # restauramaos o endereço de retorno
+            addiu   $sp, $sp, 40        # restauramos a pilha
+            jr	    $ra                 # retorna ao procedimento chamador
+########################################################################################################################
