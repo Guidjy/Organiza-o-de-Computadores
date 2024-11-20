@@ -76,10 +76,14 @@ init:
 
 # variáveis do jogo
 .data
-tabuleiro:	.space 168	# vetor que representa o tabuleiro de connect 4
-linha:		.word 0		# armazenar a jogada de um jogador
-coluna:		.word 0		# armazenar a jogada de um jogador
-vez:		.word 0		# indica de qual jogador é a vez de jogar
+tabuleiro:		.space 168	# vetor que representa o tabuleiro de connect 4
+linha:			.word 0		# armazenar a jogada de um jogador
+coluna:			.word 0		# armazenar a jogada de um jogador
+vez:			.word 0		# indica de qual jogador é a vez de jogar
+buffer:			.space 1	# espaço para armazenar 1 caractere
+string_apresentacao:	.asciiz "> Clique 'enter' para jogar:"
+string_fim1:		.asciiz "-=-=-=-=-=- GAME OVER -=-=-=-=-=-"
+string_fim2:		.asciiz "> Jogar de novo? [s/n]"
 
 ########################################################################################################################
 
@@ -163,6 +167,9 @@ main:
     	# desenha as fichas
     	move $a0, $s0		# $a0 = endereço base de tabuleiro
     	jal desenha_fichas
+    	
+    	# fim de jogo
+    	jal jogo_quer_jogar
     	
 # epílogo
         lw $ra, 0($sp)		# restaura o endereço de retorno
@@ -624,6 +631,24 @@ jogo_apresenta:
 	li $a2, 54
 	li $a3, 36
 	jal draw_line
+	
+	# "clique 'enter' para jogar"
+	# exibe a mensagem
+	la $a0, string_apresentacao 	# carrega o endereço da string em $a0
+	li $v0, 4			# código de syscall para imprimir uma string
+	syscall
+	
+	# repete até o usuário digitar 'enter'
+	input_loop1:
+		# lê um caractére
+		la $a0, buffer		  # $a0 recebe o buffer para o caratere
+		li $a1, 2		  # lê até 2 caractéres (inclui o '\0')
+		li $v0, 8		  # código de syscall para ler uma string
+		syscall			  # lê um caractere
+		# Verifica se o caractere é '\n'
+		lb $t0, buffer		  # $t0 = caractere digitado pelo usuário
+		li $t1, 10		  # $t1 = código ASCII para '\n'
+		bne $t0, $t1, input_loop1 # volta para input loop se o caractere digitado não for enter
 		
 
 # epílogo
@@ -1156,6 +1181,53 @@ desenha_ficha:
         
 ########################################################################################################################
 
+# pergunta ao jogador se ele quer jogar denovo
+# retorna 1 em $v0 se jogador quer jogar denovo, caso contrário, retorna 0
+# valor de retorno:
+# $v0 = 1 ou 0
+jogo_quer_jogar:
+# prólogo
+	addi $sp, $sp, -4		# ajusta a pilha
+	sw $ra, 0($sp)			# guarda o endereço de retorno
+	
+# corpo do procedimento
+
+	# Imprime a string_fim1
+    	la $a0, string_fim1   		# Carrega o endereço de string_fim1 para $a0
+    	li $v0, 4             		# Código do syscall para imprimir string
+    	syscall
+    	# Quebra de linha
+    	li $a0, 10            		# Código ASCII para '\n'
+    	li $v0, 11            		# Código do syscall para imprimir caractere
+    	syscall
+    	# Imprime a string_fim2
+    	la $a0, string_fim2   		# Carrega o endereço de string_fim2 para $a0
+    	li $v0, 4             		# Código do syscall para imprimir string
+    	syscall
+    	
+    	# Lê um caractere
+    	li $v0, 8               	# Código do syscall para ler string
+   	la $a0, buffer          	# Endereço para armazenar o caractere
+    	li $a1, 2               	# Tamanho máximo da entrada (1 caractere + '\0')
+    	syscall
+    	
+	# verifica se o caractere digitado é 's'
+	lb $t0, buffer			# $t0 = caractere digitado pelo usuário
+	li $t1, 's'			# $t0 = 's'
+	beq $t0, $t1, return_true	# vai para "return_true" se $t0 = $t1
+	li $v0, 0			# retorna 0
+	j quer_jogar_exit		# pula pro final do procedimento
+	
+	return_true:
+		li $v0, 1		# retorna 1
+    	
+	quer_jogar_exit:
+# epílogo
+	lw $ra, 0($sp)			# restaura o endereço de retorno
+        addiu $sp, $sp, 4       	# restaura a pilha
+        jr $ra                  	# retorna ao procedimento chamador
+
+########################################################################################################################
+
 exit:
 	nop
-
